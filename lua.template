@@ -1,0 +1,39 @@
+{%macro default_value(arg) %}
+{% if arg.type in ['DWORD', 'int', ] -%}
+0
+{% endif %}
+{% endmacro %}
+
+local ffi = require("ffi")
+
+ffi.cdef[[
+{% for typedef in library.typedefs %}
+  typedef {{typedef.type}} {{typedef.name}};
+{% endfor %}
+
+{% for function in library.functions %}
+{{ function.return_type }} {{ function.name }} (
+{% for argument in function.arguments[:-1] %}
+{{ argument.type }} {{ argument.name }},
+{% endfor %}
+{{ function.arguments[-1].type }} {{ function.arguments[-1].name }}
+);
+{% endfor %}
+]]
+
+local {{library.name}} = ffi.load("{{library.name}}")
+
+{% for function in library.functions %}
+local function {{function.name }} (arguments)
+{% for argument in function.arguments %}
+  arguments.{{ argument.name }} = arguments.{{ argument.name }} or {{ default_value(argument) }}
+{% endfor %}
+    return {{ library.name }}.{{ function.name }}(
+{% for argument in function.arguments[:-1] %}
+    arguments.{{ argument.name }}, 
+{% endfor %}
+    arguments.{{ function.arguments[-1].name }}
+)
+end
+
+{% endfor %}
